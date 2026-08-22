@@ -92,7 +92,7 @@ func newTestAppWithDocker(t *testing.T, docker *dockerctl.Client) (*testApp, []*
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	files := agentfiles.New(t.TempDir(), logger)
 	srv := api.New(st, []byte("test-jwt-secret-0123456789abcdef"), logger, docker,
-		notify.New(st, logger), backup.New(st, nil, logger, t.TempDir(), files), files, nil)
+		notify.New(st, logger, "Test"), backup.New(st, nil, logger, t.TempDir(), files), files, nil)
 	staticFS := fstest.MapFS{"index.html": &fstest.MapFile{Data: []byte("<html></html>")}}
 	app := &testApp{handler: srv.Routes(staticFS), store: st, api: srv}
 

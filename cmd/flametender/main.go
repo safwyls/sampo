@@ -84,7 +84,7 @@ func run(logger *slog.Logger) error {
 
 	// Discord notifications: the collector reports reachability changes
 	// and player joins/leaves through it, the scheduler restart notices.
-	notifier := notify.New(st, logger)
+	notifier := notify.New(st, logger, "Flametender")
 
 	// Samples server health in the background so the dashboard charts have
 	// history to draw, rather than only what's happened since page load.

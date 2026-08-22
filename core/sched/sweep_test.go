@@ -114,7 +114,7 @@ func newStore(t *testing.T) *store.Store {
 func newScheduler(t *testing.T, st *store.Store) *Scheduler {
 	t.Helper()
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	return New(st, notify.New(st, logger), nil, logger, nil)
+	return New(st, notify.New(st, logger, "Test"), nil, logger, nil)
 }
 
 // addServer registers a REST-mode row aimed at the spy.

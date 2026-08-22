@@ -81,7 +81,7 @@ func run(logger *slog.Logger) error {
 
 	// World webhooks ride the shared notifier; there are no server rows
 	// here, so only the sync events ever fire.
-	notifier := notify.New(st, logger)
+	notifier := notify.New(st, logger, "Reliquary")
 
 	saveSync := savesync.New(st, notifier, logger, cfg.DataDir)
 	go saveSync.Run(ctx)

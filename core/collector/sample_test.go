@@ -97,7 +97,7 @@ func newStore(t *testing.T) *store.Store {
 func newCollector(t *testing.T, st *store.Store) *Collector {
 	t.Helper()
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	return New(st, notify.New(st, logger), logger)
+	return New(st, notify.New(st, logger, "Test"), logger)
 }
 
 func addServer(t *testing.T, st *store.Store, rawURL string, tweak func(*store.Server)) *store.Server {

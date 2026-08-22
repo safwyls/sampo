@@ -119,7 +119,7 @@ func fixture(t *testing.T, tweak func(*store.DiscordWebhook)) (*notify.Notifier,
 	if err != nil {
 		t.Fatal(err)
 	}
-	return notify.New(st, slog.New(slog.NewTextHandler(io.Discard, nil))), srv, spy
+	return notify.New(st, slog.New(slog.NewTextHandler(io.Discard, nil)), "Test"), srv, spy
 }
 
 func TestEventsReachDiscord(t *testing.T) {
@@ -300,7 +300,7 @@ func TestNoWebhookConfiguredIsSilent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	n := notify.New(st, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	n := notify.New(st, slog.New(slog.NewTextHandler(io.Discard, nil)), "Test")
 
 	// Not an error, and not a panic — just nothing to do.
 	n.ServerDown(ctx, srv)

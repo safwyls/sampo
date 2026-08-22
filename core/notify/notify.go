@@ -38,9 +38,10 @@ const (
 )
 
 type Notifier struct {
-	store  *store.Store
-	logger *slog.Logger
-	client *http.Client
+	store    *store.Store
+	logger   *slog.Logger
+	client   *http.Client
+	username string
 
 	// suppress mutes status (down) events per server until the given time,
 	// so a scheduled restart doesn't page anyone about a planned outage.
@@ -48,11 +49,14 @@ type Notifier struct {
 	suppress map[int64]time.Time
 }
 
-func New(st *store.Store, logger *slog.Logger) *Notifier {
+// New creates a Notifier that posts Discord messages under the given
+// username — each console (and reliquary) names itself.
+func New(st *store.Store, logger *slog.Logger, username string) *Notifier {
 	return &Notifier{
 		store:    st,
 		logger:   logger,
 		client:   &http.Client{Timeout: 10 * time.Second},
+		username: username,
 		suppress: make(map[int64]time.Time),
 	}
 }
@@ -273,7 +277,7 @@ func (n *Notifier) send(ctx context.Context, srv *store.Server, ev Event, e embe
 
 func (n *Notifier) post(ctx context.Context, webhookURL string, e embed) error {
 	payload, err := json.Marshal(map[string]any{
-		"username": "Flametender",
+		"username": n.username,
 		"embeds":   []embed{e},
 		// Player names are arbitrary input; never let one ping a role or
 		// @everyone, no matter what it contains.
