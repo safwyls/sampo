@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { toast } from "sonner";
 import { api, errorText } from "../lib/api";
 import { useRefreshState } from "../lib/state";
@@ -5,6 +6,7 @@ import { custodyOf, launchable, type Artwork, type Link, type SyncWorld } from "
 import { CoverArt } from "./CoverArt";
 import { CustodyChip, custodyLine } from "./CustodyChip";
 import { ConfirmDialog } from "./ConfirmDialog";
+import { EditWorldDialog } from "./EditWorldDialog";
 import { Button } from "./ui/button";
 
 /**
@@ -31,6 +33,7 @@ export function WorldRow({
   launchOnCheckout: boolean;
 }) {
   const refresh = useRefreshState();
+  const [editing, setEditing] = useState(false);
   const custody = custodyOf(link, world, me, configured);
   const title = link.gameTitle || world?.world.name || "";
   // "& play" only when both halves are true: the setting is on, and this
@@ -56,9 +59,9 @@ export function WorldRow({
    * the custody half succeeded and the player needs to know the other
    * half did not, without being told the whole thing failed.
    */
-  const checkout = async (takeover: boolean) => {
+  const checkout = async (takeover: boolean, play = true) => {
     try {
-      const out = await api.checkout(link.worldId, takeover);
+      const out = await api.checkout(link.worldId, takeover, play);
       if (out.launchError) {
         toast.warning(`checked out, but the game did not start: ${out.launchError}`);
       } else if (out.launched) {
@@ -91,9 +94,17 @@ export function WorldRow({
         <div className="break-all font-mono text-[11px] text-mist">{link.dir}</div>
         <div className="flex flex-wrap gap-2">
           {custody === "free" ? (
-            <Button variant="primary" onClick={() => checkout(false)}>
-              {willPlay ? "Check out & play" : "Check out & host"}
-            </Button>
+            <>
+              <Button variant="primary" onClick={() => checkout(false)}>
+                {willPlay ? "Check out & play" : "Check out & host"}
+              </Button>
+              {/* The save alone, no launch — for taking custody without
+                  starting anything, regardless of the launch-on-checkout
+                  setting. */}
+              {willPlay ? (
+                <Button onClick={() => checkout(false, false)}>Check out</Button>
+              ) : null}
+            </>
           ) : null}
           {custody === "mine" ? (
             <>
@@ -143,6 +154,7 @@ export function WorldRow({
               Claim next
             </Button>
           ) : null}
+          <Button onClick={() => setEditing(true)}>Edit</Button>
           <ConfirmDialog
             trigger={<Button>Unlink</Button>}
             title="Unlink this world from its folder?"
@@ -152,6 +164,7 @@ export function WorldRow({
           />
         </div>
       </div>
+      {editing ? <EditWorldDialog link={link} world={world} onClose={() => setEditing(false)} /> : null}
     </div>
   );
 }

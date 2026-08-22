@@ -708,6 +708,22 @@ func (a *app) linkWorld(worldID int64, gameTitle, dir, meta, appID string) error
 	return nil
 }
 
+// renameWorld changes a world's name on the service. Unlike linkWorld's
+// meta call this carries none of the game-info fields, so the service
+// leaves gameTitle/saveHint/gameMeta exactly as they were.
+func (a *app) renameWorld(worldID int64, name string) error {
+	if name == "" {
+		return errors.New("a world needs a name")
+	}
+	if err := a.syncDo(http.MethodPut, fmt.Sprintf("/worlds/%d/meta", worldID), map[string]string{"name": name}, nil); err != nil {
+		a.setSyncErr(err)
+		return err
+	}
+	a.noteSync(fmt.Sprintf("renamed the world to %q", name))
+	a.syncRefresh()
+	return nil
+}
+
 // createWorld makes a world on the service from a discovered game, links
 // it, and optionally seeds it with the folder's current save.
 func (a *app) createWorld(name, gameTitle, dir, meta, appID, savePath string, seed bool) error {

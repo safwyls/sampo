@@ -86,15 +86,15 @@ export const api = {
    * and the world has something to start — plays it. The answer says
    * which of those happened: a save on disk with a game that would not
    * start is a real outcome, not a failure. */
-  checkout: (worldID: number, takeover: boolean) =>
+  checkout: (worldID: number, takeover: boolean, play = true) =>
     call<{ launched?: boolean; launchError?: string }>(
       "POST",
       `/api/links/${worldID}/checkout`,
-      { takeover },
+      { takeover, play },
     ),
   /** Start the game for a world already held here. */
   launch: (worldID: number) => call("POST", `/api/links/${worldID}/launch`),
-  updateLink: (worldID: number, input: { launchTarget?: string }) =>
+  updateLink: (worldID: number, input: { launchTarget?: string; dir?: string; worldName?: string }) =>
     call("PUT", `/api/links/${worldID}`, input),
   checkin: (worldID: number) => call("POST", `/api/links/${worldID}/checkin`),
   checkpoint: (worldID: number) => call("POST", `/api/links/${worldID}/checkpoint`),

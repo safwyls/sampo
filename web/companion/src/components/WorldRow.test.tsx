@@ -49,8 +49,15 @@ describe("WorldRow", () => {
 
   it("offers checking out a free world, and nothing else custodial", () => {
     show();
-    expect(screen.getByRole("button", { name: /^Check out/ })).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: /^Check out/ }).length).toBeGreaterThan(0);
     expect(screen.queryByRole("button", { name: "Check in" })).not.toBeInTheDocument();
+  });
+
+  it("offers a plain checkout — no launch — alongside checkout & play", async () => {
+    const checkout = vi.spyOn(api, "checkout").mockResolvedValue({});
+    show();
+    await userEvent.click(screen.getByRole("button", { name: "Check out" }));
+    await waitFor(() => expect(checkout).toHaveBeenCalledWith(1, false, false));
   });
 
   it("offers check in, checkpoint and renew to the holder on this machine", () => {
@@ -87,7 +94,7 @@ describe("WorldRow", () => {
     ).toBeInTheDocument();
     expect(checkout).not.toHaveBeenCalled();
     await userEvent.click(screen.getByRole("button", { name: "Take over" }));
-    await waitFor(() => expect(checkout).toHaveBeenCalledWith(1, true));
+    await waitFor(() => expect(checkout).toHaveBeenCalledWith(1, true, true));
   });
 
   it("offers to claim next only when nobody has", () => {
@@ -176,7 +183,7 @@ describe("WorldRow — checking out and playing", () => {
     show(makeSyncWorld({ holder: holder({ claimable: true }) }));
     await userEvent.click(screen.getByRole("button", { name: "Take over expired hold" }));
     await userEvent.click(await screen.findByRole("button", { name: "Take over" }));
-    await waitFor(() => expect(checkout).toHaveBeenCalledWith(1, true));
+    await waitFor(() => expect(checkout).toHaveBeenCalledWith(1, true, true));
   });
 
   // Coming back to a world already held here, later in the same hold.

@@ -26,7 +26,29 @@ export function SettingsDialog({
   const steam = useSeededField(state.config?.steamDirs?.[0] ?? "");
   const [token, setToken] = useState("");
   const [busy, setBusy] = useState(false);
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
   const launchOnCheckout = state.config?.launchOnCheckout ?? true;
+  const update = state.update;
+  const version = state.version;
+
+  const checkUpdate = async () => {
+    setCheckingUpdate(true);
+    try {
+      const { update: u } = await api.checkUpdate();
+      if (u?.error) {
+        toast.error(u.error);
+      } else if (u?.available) {
+        toast.success(`update available: ${u.version}`);
+      } else {
+        toast.success("you're up to date");
+      }
+    } catch (err) {
+      toast.error(errorText(err));
+    } finally {
+      setCheckingUpdate(false);
+      refresh();
+    }
+  };
 
   const connect = async (e: FormEvent) => {
     e.preventDefault();
@@ -127,6 +149,22 @@ export function SettingsDialog({
               </span>
             </span>
           </label>
+        </div>
+
+        <div className="mt-6 border-t border-edge pt-4">
+          <Label>Companion version {version ? <span className="text-mist">({version})</span> : null}</Label>
+          <p className="mt-1 text-[12px] italic text-mist">
+            {update?.error
+              ? `last check failed: ${update.error}`
+              : update?.available
+                ? `an update is available: ${update.version}`
+                : update?.checkedAt
+                  ? "up to date, as of the last check"
+                  : "checked automatically every few hours"}
+          </p>
+          <Button type="button" className="mt-2" disabled={checkingUpdate} onClick={checkUpdate}>
+            Check for update
+          </Button>
         </div>
 
         <div className="mt-5 flex justify-end">
