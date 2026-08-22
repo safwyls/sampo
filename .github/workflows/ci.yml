@@ -79,6 +79,16 @@ jobs:
           go build ./...
           go vet ./...
           go test ./...
+      # rsrc_windows_amd64.syso is generated from the companion's favicon
+      # and committed so a plain `go build` gets the exe icon. Derived
+      # files go stale silently, so regenerate it here and fail on a
+      # difference — rsrc's output is byte-for-byte deterministic.
+      - name: Companion exe icon is current
+        run: |
+          go run github.com/akavel/rsrc@v0.10.2 \
+            -ico web/companion/public/favicon.ico -arch amd64 -o /tmp/rsrc.syso
+          cmp /tmp/rsrc.syso cmd/companion/rsrc_windows_amd64.syso \
+            || { echo "cmd/companion/rsrc_windows_amd64.syso is stale — run: go generate ./cmd/companion"; exit 1; }
       - name: companion Windows build (players run Windows; the tray code is windows-only)
         run: |
           GOOS=windows GOARCH=amd64 go build -ldflags="-H windowsgui" ./cmd/companion
