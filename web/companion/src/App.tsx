@@ -8,6 +8,7 @@ import { LinkGameDialog, byHandGame } from "./components/LinkGameDialog";
 import { LinkedGameDialog } from "./components/LinkedGameDialog";
 import { PanelBoundary, SectionHeader } from "./components/Panel";
 import { SettingsDialog } from "./components/SettingsDialog";
+import { UpdateBanner } from "./components/UpdateBanner";
 import { Shelf, linkFor } from "./components/Shelf";
 import { WorldRow } from "./components/WorldRow";
 import { tileKey } from "./components/GameTile";
@@ -57,6 +58,9 @@ export function App() {
 
       {state.sync?.configured ? (
         <main className="flex flex-1 flex-col gap-5 px-7 py-6">
+          <PanelBoundary name="update">
+            <UpdateBanner update={state.update} />
+          </PanelBoundary>
           <PanelBoundary name="worlds">
             <section className="flex flex-col gap-2.5">
               <SectionHeader title="Your worlds" />
@@ -97,7 +101,14 @@ export function App() {
         </main>
       ) : (
         <PanelBoundary name="setup">
-          <FirstRun state={state} />
+          <div className="flex flex-1 flex-col">
+            {state.update?.available ? (
+              <div className="px-7 pt-6">
+                <UpdateBanner update={state.update} />
+              </div>
+            ) : null}
+            <FirstRun state={state} />
+          </div>
         </PanelBoundary>
       )}
 

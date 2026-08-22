@@ -55,6 +55,10 @@ func main() {
 		log.Fatalf("loading config: %v", err)
 	}
 	setupLogging(cfgPath)
+	// An update leaves the previous build beside this one, because a
+	// running binary cannot delete itself. Startup is the first moment
+	// it is no longer running (update.go).
+	clearOldBinary()
 
 	ln, err := net.Listen("tcp", *listen)
 	if err != nil {
@@ -72,6 +76,7 @@ func main() {
 	app := newApp(cfg, cfgPath)
 	app.rescan()
 	go app.watchLoop()
+	go app.watchUpdates(context.Background())
 	go func() {
 		if err := http.Serve(ln, app.routes()); err != nil {
 			log.Fatalf("local server: %v", err)

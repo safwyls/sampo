@@ -1,4 +1,4 @@
-import type { Browse, CompanionState, Artwork, SplitInfo } from "./types";
+import type { Browse, CompanionState, Artwork, SplitInfo, UpdateState } from "./types";
 
 /**
  * The companion's API answers `{ok: false, error}` rather than HTTP
@@ -71,6 +71,13 @@ export const api = {
   resolveSavePath: (root: string, leaf: string, create: boolean) =>
     call<{ dir: string; exists: boolean }>("POST", "/api/savepath/resolve", { root, leaf, create }),
   hide: (key: string, hidden: boolean) => call("POST", "/api/hide", { key, hidden }),
+
+  /** Ask GitHub now rather than waiting for the six-hourly check. */
+  checkUpdate: () => call<{ update?: UpdateState }>("POST", "/api/update/check"),
+  /** Replace this build and restart into the new one. The companion
+   * answers before it restarts, so a success here means the swap
+   * happened and the process is about to go. */
+  applyUpdate: () => call<{ restarting?: boolean }>("POST", "/api/update/apply"),
 
   addLink: (input: LinkInput) => call("POST", "/api/links", input),
   createWorld: (input: CreateWorldInput) => call("POST", "/api/links/create", input),

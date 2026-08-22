@@ -22,6 +22,10 @@ type app struct {
 	// discovered is the installed-games scan (discover.go), refreshed on
 	// demand — a filesystem walk, not something to run every tick.
 	discovered discovery
+	// update is what GitHub last said about the current release
+	// (update.go). Convenience, never custody: an update that cannot be
+	// found or applied changes nothing about syncing saves.
+	update updateState
 	// art caches cover lookups the service answered, misses included, so
 	// a rescan doesn't re-ask for games IGDB has never heard of.
 	art map[string]gameArt

@@ -5,6 +5,7 @@ package main
 import (
 	"io/fs"
 	"log"
+	"os"
 	"time"
 
 	"fyne.io/systray"
@@ -28,6 +29,19 @@ func trayIcon() []byte {
 		return nil
 	}
 	return data
+}
+
+// exitForRestart ends this process so the replacement started by
+// restartSelf takes over. The tray icon has to go first: systray owns a
+// window and a shell notification-area entry, and a process that exits
+// without giving it up leaves a ghost icon behind until someone hovers
+// over it.
+func exitForRestart() {
+	systray.Quit()
+	// systray.Quit returns before the icon is actually gone; give the
+	// shell a moment rather than racing it.
+	time.Sleep(250 * time.Millisecond)
+	os.Exit(0)
 }
 
 // runUI parks the companion in the system tray: open the page, sync on

@@ -1,8 +1,10 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"io/fs"
+	"log"
 	"net/http"
 	"os"
 	"strconv"
@@ -52,6 +54,10 @@ func (a *app) routes() http.Handler {
 	mux.HandleFunc("POST /api/links/create", a.handleCreateWorld)
 	mux.HandleFunc("PUT /api/links/{worldID}", a.handleUpdateLink)
 	mux.HandleFunc("POST /api/links/{worldID}/launch", a.linkAction((*app).launch))
+	// Keeping this build current (update.go). Local-only like the rest;
+	// what it reaches out to is GitHub's public release API.
+	mux.HandleFunc("POST /api/update/check", a.handleCheckUpdate)
+	mux.HandleFunc("POST /api/update/apply", a.handleApplyUpdate)
 	mux.HandleFunc("DELETE /api/links/{worldID}", a.linkAction(func(a *app, id int64) error { return a.unlink(id) }))
 	mux.HandleFunc("POST /api/links/{worldID}/checkout", a.handleCheckout)
 	mux.HandleFunc("POST /api/links/{worldID}/checkin", a.linkAction((*app).syncCheckin))
@@ -106,6 +112,7 @@ func (a *app) handleState(w http.ResponseWriter, r *http.Request) {
 		"discovered": discovered,
 		"sync":       st,
 		"version":    version,
+		"update":     a.update,
 	}
 	a.mu.Unlock()
 	writeJSON(w, out)
@@ -352,6 +359,43 @@ func (a *app) handleCheckout(w http.ResponseWriter, r *http.Request) {
 		out["launchError"] = launchErr.Error()
 	}
 	writeJSON(w, out)
+}
+
+// handleCheckUpdate asks GitHub now rather than waiting for the timer —
+// the same "be certain rather than patient" the sync-now button serves.
+func (a *app) handleCheckUpdate(w http.ResponseWriter, r *http.Request) {
+	a.checkUpdate(r.Context())
+	a.mu.Lock()
+	st := a.update
+	a.mu.Unlock()
+	writeJSON(w, map[string]any{"ok": st.Error == "", "update": st, "error": st.Error})
+}
+
+// handleApplyUpdate replaces this binary and restarts into the new one.
+// The answer goes out *before* the restart, because the page is served
+// by the process that is about to exit — a reply written afterwards
+// would never arrive, and the player would see a failed request for an
+// update that actually worked.
+func (a *app) handleApplyUpdate(w http.ResponseWriter, r *http.Request) {
+	// Not r.Context(): that is cancelled the moment this response is
+	// written, and the download outlives it.
+	if err := a.applyUpdate(context.Background()); err != nil {
+		writeJSON(w, map[string]any{"ok": false, "error": err.Error()})
+		return
+	}
+	writeJSON(w, map[string]any{"ok": true, "restarting": true})
+	if f, ok := w.(http.Flusher); ok {
+		f.Flush()
+	}
+	// Hand the page a moment to receive that, then swap processes.
+	go func() {
+		time.Sleep(500 * time.Millisecond)
+		if err := restartSelf(); err != nil {
+			log.Printf("update: restarting: %v", err)
+			return
+		}
+		exitForRestart()
+	}()
 }
 
 // handleUpdateLink edits the parts of a link the player owns. Only the
