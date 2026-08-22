@@ -1,0 +1,313 @@
+<!-- @dsCard group="Status" name="Toasts and the live dot" subtitle="Every action says what happened, or why it didn't" width="900" height="560" -->
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Reliquary · Toasts and the live dot</title>
+    <style>
+      :root {
+        --ink: 16 13 23; /* #100d17 — the page ground */
+        --well: 20 16 29; /* #14101d — sidebar and inset strips — a shade under the page, so a panel on it still reads as raised */
+        --panel: 26 21 36; /* #1a1524 — cards, dialogs, menus */
+        --edge: 47 39 64; /* #2f2740 — every border and divider */
+        --parchment: 232 224 207; /* #e8e0cf — body text */
+        --mist: 148 141 163; /* #948da3 — secondary text, quiet buttons, labels */
+        --gold: 201 168 96; /* #c9a860 — accent, headings, the primary button, the focus ring */
+        --goldhi: 227 198 127; /* #e3c67f — accent hover, links, the HEAD badge */
+        --ok: 127 196 106; /* #7fc46a — free custody, the live dot, success */
+        --ember: 212 115 94; /* #d4735e — danger, conflict, an expired hold */
+        --rune: 157 127 196; /* #9d7fc4 — game tags, info, the CHECKPOINT badge */
+        --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+        --primary-fill: linear-gradient(to bottom, #2a2416, #1e1a10);
+        --fill-free: #14200f;
+        --fill-held: #23180c;
+        --fill-expired: #26130e;
+        --fill-cover: linear-gradient(to bottom right, #221b2e, #14101d);
+        --fill-login: radial-gradient(ellipse at 50% 30%, #1a1524 0%, #100d17 65%);
+        color-scheme: dark;
+      }
+
+      *, *::before, *::after { box-sizing: border-box; }
+      
+      /* ---- preview chrome -------------------------------------------------- */
+      .ds-page {
+        margin: 0;
+        background: rgb(var(--ink));
+        color: rgb(var(--parchment));
+        font-family: Georgia, Gelasio, "Times New Roman", serif;
+        font-size: 15px;
+        line-height: 1.5;
+        -webkit-font-smoothing: antialiased;
+      }
+      .ds-head { border-bottom: 1px solid rgb(var(--edge)); padding: 26px 32px 20px; }
+      .ds-eyebrow {
+        margin: 0; font-family: var(--mono); font-size: 11px;
+        letter-spacing: 0.12em; text-transform: uppercase; color: rgb(var(--mist));
+      }
+      .ds-title { margin: 6px 0 0; font-size: 22px; font-weight: normal; letter-spacing: 0.05em; color: rgb(var(--gold)); }
+      .ds-sub { margin: 3px 0 0; font-size: 13px; color: rgb(var(--mist)); }
+      .ds-intent { margin: 14px 0 0; max-width: 70ch; font-size: 14px; color: rgb(var(--parchment) / 0.9); }
+      .ds-body { display: flex; flex-direction: column; gap: 28px; padding: 24px 32px 44px; }
+      .ds-caption {
+        margin: 0 0 10px; font-family: var(--mono); font-size: 10px;
+        letter-spacing: 0.12em; text-transform: uppercase; color: rgb(var(--mist));
+      }
+      .ds-stage { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+      .ds-stage--block { display: block; }
+      .ds-stage--stack { display: flex; flex-direction: column; align-items: stretch; gap: 12px; }
+      .ds-stage--well {
+        background: rgb(var(--well)); border: 1px solid rgb(var(--edge));
+        border-radius: 8px; padding: 18px;
+      }
+      .ds-meta { border-top: 1px solid rgb(var(--edge)); padding-top: 16px; }
+      .ds-meta-h {
+        margin: 0 0 8px; font-family: var(--mono); font-size: 10px; font-weight: normal;
+        letter-spacing: 0.12em; text-transform: uppercase; color: rgb(var(--mist));
+      }
+      .ds-paths, .ds-rules { margin: 0; padding-left: 18px; }
+      .ds-paths li, .ds-rules li { font-size: 13px; color: rgb(var(--parchment) / 0.85); margin-bottom: 4px; }
+      .ds-paths li { list-style: none; margin-left: -18px; }
+      code { font-family: var(--mono); font-size: 12px; color: rgb(var(--goldhi)); }
+      .ds-idx-group + .ds-idx-group { border-top: 1px solid rgb(var(--edge)); padding-top: 20px; }
+      .ds-idx { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+      .ds-idx li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; }
+      .ds-idx-link { color: rgb(var(--goldhi)); text-decoration: none; font-size: 15px; }
+      .ds-idx-link:hover { color: rgb(var(--gold)); text-decoration: underline; }
+      .ds-idx-sub { font-size: 12px; color: rgb(var(--mist)); }
+      
+      /* ---- swatches -------------------------------------------------------- */
+      .rq-swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
+      .rq-swatch { border: 1px solid rgb(var(--edge)); border-radius: 8px; overflow: hidden; background: rgb(var(--panel)); }
+      .rq-swatch-chip { height: 58px; border-bottom: 1px solid rgb(var(--edge)); }
+      .rq-swatch-body { padding: 8px 10px 10px; }
+      .rq-swatch-name { font-family: var(--mono); font-size: 12px; color: rgb(var(--parchment)); }
+      .rq-swatch-hex { font-family: var(--mono); font-size: 11px; color: rgb(var(--mist)); }
+      .rq-swatch-use { margin-top: 4px; font-size: 12px; color: rgb(var(--mist)); line-height: 1.35; }
+      
+      /* ---- Reliquary primitives -------------------------------------------- */
+      .rq-i { width: 14px; height: 14px; flex: none; }
+      .rq-i--sm { width: 12px; height: 12px; }
+      .rq-i--lg { width: 16px; height: 16px; }
+      .rq-mono { font-family: var(--mono); }
+      
+      .rq-panel {
+        border: 1px solid rgb(var(--edge)); background: rgb(var(--panel));
+        border-radius: 8px; padding: 16px 20px;
+      }
+      .rq-well {
+        border: 1px dashed rgb(var(--edge)); background: rgb(var(--well));
+        border-radius: 8px; padding: 14px 20px; font-size: 13px; color: rgb(var(--mist));
+      }
+      .rq-h1 { margin: 0; font-size: 22px; font-weight: normal; letter-spacing: 0.05em; color: rgb(var(--gold)); }
+      .rq-label { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: rgb(var(--mist)); }
+      .rq-input {
+        width: 100%; border: 1px solid rgb(var(--edge)); border-radius: 4px;
+        background: rgb(var(--ink)); padding: 8px 10px; font-family: inherit;
+        font-size: 14px; color: rgb(var(--parchment));
+      }
+      .rq-input::placeholder { color: rgb(var(--mist) / 0.6); }
+      .rq-input:focus-visible, .rq-btn:focus-visible, .rq-navitem:focus-visible {
+        outline: none; box-shadow: 0 0 0 2px rgb(var(--ink)), 0 0 0 4px rgb(var(--gold) / 0.6);
+      }
+      
+      .rq-btn {
+        display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+        border: 1px solid transparent; border-radius: 4px; white-space: nowrap;
+        font-family: inherit; padding: 6px 16px; font-size: 13px; cursor: pointer;
+        background: none; transition: color 0.12s ease, border-color 0.12s ease;
+      }
+      .rq-btn--primary {
+        border-color: rgb(var(--gold)); background: var(--primary-fill);
+        font-weight: 700; letter-spacing: 0.04em; color: rgb(var(--gold));
+      }
+      .rq-btn--primary:hover { color: rgb(var(--goldhi)); border-color: rgb(var(--goldhi)); }
+      .rq-btn--quiet { border-color: rgb(var(--edge)); color: rgb(var(--mist)); }
+      .rq-btn--quiet:hover { border-color: rgb(var(--gold) / 0.6); color: rgb(var(--parchment)); }
+      .rq-btn--danger { border-color: rgb(var(--ember) / 0.4); color: rgb(var(--mist)); }
+      .rq-btn--danger:hover { border-color: rgb(var(--ember)); color: rgb(var(--ember)); }
+      .rq-btn--sm { padding: 4px 12px; font-size: 12px; }
+      .rq-btn--lg { padding: 8px 18px; font-size: 14px; }
+      .rq-btn--icon { padding: 6px 10px; }
+      .rq-btn[disabled], .rq-btn.is-disabled { opacity: 0.5; pointer-events: none; }
+      .rq-btn.is-hover.rq-btn--primary { color: rgb(var(--goldhi)); border-color: rgb(var(--goldhi)); }
+      .rq-btn.is-hover.rq-btn--quiet { border-color: rgb(var(--gold) / 0.6); color: rgb(var(--parchment)); }
+      .rq-btn.is-hover.rq-btn--danger { border-color: rgb(var(--ember)); color: rgb(var(--ember)); }
+      
+      .rq-badge {
+        display: inline-block; border-radius: 3px; background: rgb(var(--ink));
+        padding: 2px 8px; font-family: var(--mono); font-size: 10px; letter-spacing: 0.06em;
+      }
+      .rq-badge--head { color: rgb(var(--goldhi)); }
+      .rq-badge--conflict { color: rgb(var(--ember)); }
+      .rq-badge--checkpoint { color: rgb(var(--rune)); }
+      .rq-badge--muted { color: rgb(var(--mist)); }
+      
+      .rq-chip {
+        display: inline-flex; align-items: center; gap: 6px; border: 1px solid;
+        border-radius: 999px; padding: 2px 12px; font-size: 12px;
+      }
+      .rq-chip--free { border-color: rgb(var(--ok)); background: var(--fill-free); color: rgb(var(--ok)); }
+      .rq-chip--held { border-color: rgb(var(--gold)); background: var(--fill-held); color: rgb(var(--goldhi)); }
+      .rq-chip--expired { border-color: rgb(var(--ember)); background: var(--fill-expired); color: rgb(var(--ember)); }
+      
+      .rq-menu {
+        min-width: 13rem; border: 1px solid rgb(var(--edge)); background: rgb(var(--panel));
+        border-radius: 4px; padding: 4px 0; font-size: 13px;
+        box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.4), 0 8px 10px -6px rgb(0 0 0 / 0.4);
+      }
+      .rq-menuitem { padding: 6px 12px; color: rgb(var(--mist)); cursor: pointer; }
+      .rq-menuitem.is-highlighted { background: rgb(var(--ink)); color: rgb(var(--parchment)); }
+      .rq-menuitem--danger.is-highlighted { background: rgb(var(--ember) / 0.1); color: rgb(var(--ember)); }
+      .rq-menusep { height: 1px; margin: 4px 0; background: rgb(var(--edge)); }
+      
+      .rq-dialog {
+        width: 100%; max-width: 28rem; position: relative;
+        border: 1px solid rgb(var(--edge)); background: rgb(var(--panel));
+        border-radius: 8px; padding: 24px; color: rgb(var(--parchment));
+        box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.6);
+      }
+      .rq-dialog-title { margin: 0; font-size: 13px; font-weight: normal; text-transform: uppercase; letter-spacing: 0.12em; color: rgb(var(--gold)); }
+      .rq-dialog-body { margin: 12px 0 0; font-size: 14px; color: rgb(var(--parchment) / 0.9); }
+      .rq-dialog-foot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 24px; }
+      .rq-dialog-x { position: absolute; right: 16px; top: 16px; color: rgb(var(--mist)); background: none; border: 0; cursor: pointer; padding: 0; }
+      
+      .rq-toast {
+        display: flex; flex-direction: column; gap: 2px; min-width: 18rem;
+        border: 1px solid rgb(var(--edge)); background: rgb(var(--panel));
+        border-radius: 4px; padding: 12px 14px; font-size: 13px; color: rgb(var(--parchment));
+      }
+      .rq-toast--success { border-color: rgb(var(--ok) / 0.5); }
+      .rq-toast--error { border-color: rgb(var(--ember) / 0.6); }
+      .rq-toast-desc { color: rgb(var(--mist)); }
+      
+      .rq-dot { display: inline-block; width: 7px; height: 7px; border-radius: 999px; }
+      .rq-dot--live { background: rgb(var(--ok)); }
+      .rq-dot--down { background: rgb(var(--mist)); }
+      
+      .rq-tableshell { overflow: hidden; border: 1px solid rgb(var(--edge)); background: rgb(var(--panel)); border-radius: 8px; }
+      .rq-tablehead {
+        border-bottom: 1px solid rgb(var(--edge)); padding: 10px 18px;
+        font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em; color: rgb(var(--mist));
+      }
+      .rq-tablerow { display: flex; align-items: center; gap: 14px; padding: 12px 18px; border-bottom: 1px solid rgb(var(--edge)); }
+      .rq-tablerow:last-child { border-bottom: 0; }
+      
+      .rq-cover { flex: none; border: 1px solid rgb(var(--edge)); border-radius: 5px; width: 84px; height: 112px; object-fit: cover; }
+      .rq-cover--fallback {
+        display: flex; align-items: center; justify-content: center; text-align: center;
+        background: var(--fill-cover); padding: 6px; font-size: 11px; line-height: 1.2; color: rgb(var(--mist));
+      }
+      .rq-cover--detail { width: 96px; height: 128px; }
+      
+      .rq-card { display: flex; align-items: flex-start; gap: 18px; border: 1px solid rgb(var(--edge)); background: rgb(var(--panel)); border-radius: 8px; padding: 18px 20px; }
+      .rq-card-main { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 8px; }
+      .rq-card-titlerow { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; }
+      .rq-card-name { font-size: 18px; font-weight: 700; color: rgb(var(--parchment)); text-decoration: none; }
+      .rq-card-game { font-size: 12px; color: rgb(var(--rune)); }
+      .rq-card-head { margin-left: auto; font-family: var(--mono); font-size: 12px; color: rgb(var(--mist)); }
+      .rq-card-line { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-size: 13px; color: rgb(var(--mist)); }
+      .rq-card-asked { font-family: var(--mono); font-size: 12px; color: rgb(var(--rune)); }
+      .rq-card-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+      
+      .rq-versionrow { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; padding: 12px 18px; border-bottom: 1px solid rgb(var(--edge)); }
+      .rq-versionrow:last-child { border-bottom: 0; }
+      .rq-vid { width: 42px; font-family: var(--mono); font-size: 13px; color: rgb(var(--parchment)); }
+      .rq-vmeta { font-size: 13px; color: rgb(var(--mist)); }
+      .rq-vmeta b { font-weight: normal; color: rgb(var(--parchment)); }
+      .rq-vactions { margin-left: auto; display: flex; gap: 8px; }
+      
+      .rq-shell { display: flex; border: 1px solid rgb(var(--edge)); border-radius: 8px; overflow: hidden; min-height: 340px; }
+      .rq-side { width: 224px; flex: none; display: flex; flex-direction: column; background: rgb(var(--well)); border-right: 1px solid rgb(var(--edge)); padding: 20px 0; }
+      .rq-side-brand { border-bottom: 1px solid rgb(var(--edge)); padding: 0 20px 18px; }
+      .rq-side-name { font-size: 21px; letter-spacing: 0.06em; color: rgb(var(--gold)); }
+      .rq-side-tag { margin-top: 2px; font-size: 12px; color: rgb(var(--mist)); }
+      .rq-nav { display: flex; flex-direction: column; gap: 2px; padding: 14px 10px; }
+      .rq-navitem {
+        display: flex; align-items: center; gap: 10px; border: 1px solid transparent;
+        border-radius: 4px; padding: 8px 12px; font-size: 15px; color: rgb(var(--mist)); text-decoration: none;
+      }
+      .rq-navitem:hover { color: rgb(var(--parchment)); }
+      .rq-navitem.is-active { border-color: rgb(var(--edge)); background: rgb(var(--panel)); color: rgb(var(--goldhi)); }
+      .rq-navitem-admin { margin-left: auto; font-size: 10px; letter-spacing: 0.08em; color: rgb(var(--rune)); }
+      .rq-side-foot { margin-top: auto; display: flex; flex-direction: column; gap: 6px; border-top: 1px solid rgb(var(--edge)); padding: 14px 20px 0; }
+      .rq-avatar {
+        display: flex; align-items: center; justify-content: center; width: 26px; height: 26px;
+        border: 1px solid rgb(var(--gold)); border-radius: 999px; background: rgb(var(--panel));
+        font-size: 12px; color: rgb(var(--gold)); flex: none;
+      }
+      .rq-side-who { display: flex; align-items: center; gap: 8px; }
+      .rq-side-name2 { font-size: 13px; }
+      .rq-side-role { font-size: 11px; color: rgb(var(--mist)); }
+      .rq-side-live { display: flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 11px; color: rgb(var(--mist)); }
+      .rq-pagehead {
+        display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between;
+        gap: 10px 16px; border-bottom: 1px solid rgb(var(--edge)); padding: 26px 32px 18px;
+      }
+      .rq-pagesub { margin-top: 2px; font-size: 13px; color: rgb(var(--mist)); }
+      .rq-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+      .rq-mainbody { padding: 20px 32px; display: flex; flex-direction: column; gap: 14px; }
+      
+      .rq-login-ground { display: flex; align-items: center; justify-content: center; padding: 32px; background: var(--fill-login); border-radius: 8px; }
+      .rq-login { display: flex; width: 100%; max-width: 360px; flex-direction: column; border: 1px solid rgb(var(--edge)); background: rgb(var(--panel)); border-radius: 8px; padding: 30px 32px 26px; }
+      .rq-login-mark { display: flex; flex-direction: column; align-items: center; gap: 6px; margin-bottom: 14px; }
+      .rq-login-mark .rq-i { width: 32px; height: 32px; color: rgb(var(--gold)); stroke-width: 1.2; }
+      .rq-login-name { font-size: 22px; letter-spacing: 0.06em; color: rgb(var(--gold)); }
+      .rq-login-tag { font-size: 13px; color: rgb(var(--mist)); }
+      .rq-login-err { margin-top: 12px; font-family: var(--mono); font-size: 12px; color: rgb(var(--ember)); }
+      .rq-login-hint { margin-top: 12px; font-size: 12px; font-style: italic; color: rgb(var(--mist)); }
+      .rq-login-hint b { font-style: normal; font-weight: normal; color: rgb(var(--parchment)); }
+      .rq-login-build { margin-top: 10px; text-align: center; font-family: var(--mono); font-size: 11px; color: rgb(var(--mist)); }
+      
+      .rq-type-row { display: flex; align-items: baseline; gap: 18px; border-bottom: 1px solid rgb(var(--edge)); padding: 12px 0; }
+      .rq-type-row:last-child { border-bottom: 0; }
+      .rq-type-key { width: 190px; flex: none; font-family: var(--mono); font-size: 11px; color: rgb(var(--mist)); }
+      .rq-focus-demo { display: inline-flex; }
+    </style>
+  </head>
+  <body class="ds-page">
+    <header class="ds-head">
+      <p class="ds-eyebrow">Reliquary · Status</p>
+      <h1 class="ds-title">Toasts and the live dot</h1>
+      <p class="ds-sub">Every action says what happened, or why it didn't</p>
+      <p class="ds-intent">The old page's one-line status readout, as toasts in the bottom-right. Every
+            action says what happened — “hold extended”, “asked — their companion answers within
+            a minute” — or why it didn't, in the server's own words. The live dot in the sidebar
+            footer says whether the custody stream is still open; a stale page that looks fresh
+            is the failure mode this exists to prevent.</p>
+    </header>
+    <main class="ds-body">
+      <section class="ds-specimen">
+<p class="ds-caption">Toasts</p>
+        <div class="ds-stage ds-stage--stack">
+          <div class="rq-toast rq-toast--success"><span>Checked out Ashwood Hollow</span><span class="rq-toast-desc">held by you until 21:14 · your companion has the save</span></div>
+          <div class="rq-toast rq-toast--error"><span>Could not force release</span><span class="rq-toast-desc">409 — the hold was already released</span></div>
+          <div class="rq-toast"><span>Asked hazel to check in</span><span class="rq-toast-desc">their companion answers within a minute of being online</span></div>
+        </div>
+      </section>
+      <section class="ds-specimen">
+<p class="ds-caption">Live dot</p>
+        <div class="ds-stage">
+          <span class="rq-side-live"><span class="rq-dot rq-dot--live"></span>live · reliquary v1.9.2</span>
+          <span class="rq-side-live"><span class="rq-dot rq-dot--down"></span>reconnecting… · reliquary v1.9.2</span>
+        </div>
+      </section>
+      <section class="ds-meta">
+        <h2 class="ds-meta-h">Rules</h2>
+        <ul class="ds-rules">
+            <li>A failed action shows the server's status and message verbatim. Do not rewrite a 409 into “something went wrong”.</li>
+            <li>The build string rides beside the live dot on every screen including login: a bug report about save sync should be able to name the build without anyone opening a container.</li>
+            <li>One stream for the whole app, opened by the shell — a page that mounts and unmounts must not take the connection with it.</li>
+        </ul>
+      </section>
+      <section class="ds-meta">
+        <h2 class="ds-meta-h">Implemented by</h2>
+        <ul class="ds-paths">
+            <li><code>web/reliquary/src/components/ui/toaster.tsx</code></li>
+            <li><code>web/reliquary/src/lib/live.ts</code></li>
+            <li><code>web/reliquary/src/components/AppShell.tsx</code></li>
+        </ul>
+      </section>
+    </main>
+  </body>
+</html>

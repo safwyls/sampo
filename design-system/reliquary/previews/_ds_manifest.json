@@ -1,0 +1,166 @@
+{
+  "app": "reliquary",
+  "title": "Reliquary",
+  "cards": [
+    {
+      "name": "Palette",
+      "path": "colors.html",
+      "subtitle": "11 tokens, one theme",
+      "group": "Foundations",
+      "viewport": {
+        "width": 900,
+        "height": 900
+      }
+    },
+    {
+      "name": "Type",
+      "path": "typography.html",
+      "subtitle": "Georgia throughout, mono for machine facts",
+      "group": "Foundations",
+      "viewport": {
+        "width": 900,
+        "height": 720
+      }
+    },
+    {
+      "name": "Surfaces",
+      "path": "surfaces.html",
+      "subtitle": "Panel, well, dashed well, 8px corner",
+      "group": "Foundations",
+      "viewport": {
+        "width": 900,
+        "height": 620
+      }
+    },
+    {
+      "name": "Focus",
+      "path": "focus.html",
+      "subtitle": "One gold ring, offset from the page ground",
+      "group": "Foundations",
+      "viewport": {
+        "width": 900,
+        "height": 420
+      }
+    },
+    {
+      "name": "Buttons",
+      "path": "button.html",
+      "subtitle": "Primary / quiet / danger, four sizes",
+      "group": "Actions",
+      "viewport": {
+        "width": 900,
+        "height": 760
+      }
+    },
+    {
+      "name": "Overflow menu",
+      "path": "overflow-menu.html",
+      "subtitle": "The rare and admin verbs, one click away",
+      "group": "Actions",
+      "viewport": {
+        "width": 900,
+        "height": 560
+      }
+    },
+    {
+      "name": "Fields",
+      "path": "fields.html",
+      "subtitle": "Label above, input on ink",
+      "group": "Forms",
+      "viewport": {
+        "width": 900,
+        "height": 620
+      }
+    },
+    {
+      "name": "Confirm dialog",
+      "path": "dialog.html",
+      "subtitle": "What the action costs, not that it is irreversible",
+      "group": "Forms",
+      "viewport": {
+        "width": 900,
+        "height": 620
+      }
+    },
+    {
+      "name": "Custody chip",
+      "path": "custody-chip.html",
+      "subtitle": "Free / Held / Hold expired",
+      "group": "Status",
+      "viewport": {
+        "width": 900,
+        "height": 640
+      }
+    },
+    {
+      "name": "Version badges",
+      "path": "badge.html",
+      "subtitle": "HEAD / CONFLICT / CHECKPOINT",
+      "group": "Status",
+      "viewport": {
+        "width": 900,
+        "height": 520
+      }
+    },
+    {
+      "name": "Toasts and the live dot",
+      "path": "feedback.html",
+      "subtitle": "Every action says what happened, or why it didn't",
+      "group": "Status",
+      "viewport": {
+        "width": 900,
+        "height": 560
+      }
+    },
+    {
+      "name": "Cover art",
+      "path": "cover-art.html",
+      "subtitle": "The image, and the tile for when there isn't one",
+      "group": "Patterns",
+      "viewport": {
+        "width": 900,
+        "height": 480
+      }
+    },
+    {
+      "name": "World card",
+      "path": "world-card.html",
+      "subtitle": "Cover, custody, and the single action custody calls for",
+      "group": "Patterns",
+      "viewport": {
+        "width": 940,
+        "height": 780
+      }
+    },
+    {
+      "name": "Version row",
+      "path": "version-row.html",
+      "subtitle": "One kept version, badges first",
+      "group": "Patterns",
+      "viewport": {
+        "width": 940,
+        "height": 520
+      }
+    },
+    {
+      "name": "App shell",
+      "path": "app-shell.html",
+      "subtitle": "Sidebar, page header, footer identity",
+      "group": "Patterns",
+      "viewport": {
+        "width": 1000,
+        "height": 620
+      }
+    },
+    {
+      "name": "Login",
+      "path": "login.html",
+      "subtitle": "Password box, and three distinguishable SSO hints",
+      "group": "Patterns",
+      "viewport": {
+        "width": 900,
+        "height": 760
+      }
+    }
+  ]
+}

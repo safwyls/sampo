@@ -23,6 +23,11 @@ jobs:
         run: ./scripts/checkbounds.sh
       - name: Doc references
         run: ./scripts/checkdocs.sh
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+      - name: Design systems (token parity, preview freshness)
+        run: ./scripts/checkdesign.sh
 
   monorepo:
     runs-on: ubuntu-latest
