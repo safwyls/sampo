@@ -7,6 +7,16 @@ between it and the save-sync service, reliquary
 icon, a local page on `127.0.0.1:8377`, a config file under the user's
 config directory.
 
+The tray menu shows **state, not narrative** — a transfer running (which
+is when quitting is the one thing not to do), an error worth opening the
+page for, or what this machine is holding, named. It deliberately does
+not repeat the page footer's last-action text: that line is written for
+somewhere with room, and it carries whole filesystem paths, which
+stretched the menu across the screen. The tray icon and the page's
+favicon are one file, `web/companion/public/favicon.ico`, embedded once
+with the frontend and read back out of it by the tray — so they cannot
+drift apart.
+
 Born `wkcompanion`, the Dragonwilds character relay. That job retired
 when the recon corrected itself — the world save carries a connected
 player's sheet and wildskeeper reads and remembers those directly — so

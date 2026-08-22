@@ -3,14 +3,32 @@
 package main
 
 import (
-	_ "embed"
+	"io/fs"
+	"log"
 	"time"
 
 	"fyne.io/systray"
+
+	web "github.com/safwyls/artificer/web/companion"
 )
 
-//go:embed assets/icon.ico
-var trayIcon []byte
+// trayIcon is the same favicon.ico the page shows in its tab: one piece
+// of artwork, embedded once with the frontend (web/companion/public),
+// so the tray and the browser tab cannot drift apart.
+func trayIcon() []byte {
+	dist, err := web.Dist()
+	if err != nil {
+		return nil
+	}
+	data, err := fs.ReadFile(dist, "favicon.ico")
+	if err != nil {
+		// A tray with no icon is still a working tray; the menu is the
+		// part that matters.
+		log.Printf("tray icon: %v", err)
+		return nil
+	}
+	return data
+}
 
 // runUI parks the companion in the system tray: open the page, sync on
 // demand, read the custody state at a glance, quit. The page is the UI —
@@ -21,7 +39,9 @@ func runUI(a *app, url string) {
 	// printed the URL. See console_windows.go.
 	detachOwnConsole()
 	systray.Run(func() {
-		systray.SetIcon(trayIcon)
+		if icon := trayIcon(); icon != nil {
+			systray.SetIcon(icon)
+		}
 		systray.SetTooltip("Artificer Companion")
 
 		open := systray.AddMenuItem("Open companion page", "Your shared worlds, in the browser")

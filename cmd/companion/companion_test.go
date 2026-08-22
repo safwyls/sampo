@@ -1115,3 +1115,147 @@ func appWithCheckoutStub(t *testing.T, appID string) (*app, string) {
 		Links:     []WorldLink{{WorldID: 1, Dir: dir, AppID: appID}},
 	}, filepath.Join(t.TempDir(), "config.json")), dir
 }
+
+// --- the tray's status line (app.go) ---
+//
+// The tray shows state, not narrative. It used to paste worldSync's last
+// action in beside the hold count, and that text is written for the
+// page's footer where there is room — it carries whole filesystem paths,
+// which stretched the menu across the screen.
+func TestTrayStatusLine(t *testing.T) {
+	longPath := `linked world 3 to C:\Users\safwyl\AppData\Local\RSDragonwilds\Saved\SaveGames\K2hAc0p_LH74aymwOemkgg`
+
+	t.Run("unconfigured says where to go", func(t *testing.T) {
+		a := newApp(Config{}, filepath.Join(t.TempDir(), "config.json"))
+		if got := a.statusLine(); got != "Not connected — open the page to set up" {
+			t.Errorf("statusLine = %q", got)
+		}
+	})
+
+	t.Run("a held world is named, and no path comes with it", func(t *testing.T) {
+		a := newApp(Config{
+			ServerURL: "https://vault.example.test",
+			Token:     "tok",
+			Links:     []WorldLink{{WorldID: 3, Dir: `C:\saves`, SessionID: 9}},
+		}, filepath.Join(t.TempDir(), "config.json"))
+		a.mu.Lock()
+		a.worldSync.LastAction = longPath
+		a.worldSync.Worlds = []syncWorldDTO{makeDTO(3, "Emberfall")}
+		a.mu.Unlock()
+
+		got := a.statusLine()
+		if got != "Holding Emberfall" {
+			t.Errorf("statusLine = %q, want the world named", got)
+		}
+		if strings.Contains(got, `C:\`) || strings.Contains(got, "linked world") {
+			t.Errorf("statusLine leaked the last action: %q", got)
+		}
+	})
+
+	t.Run("a world the poll has not named yet still counts", func(t *testing.T) {
+		a := newApp(Config{
+			ServerURL: "https://vault.example.test",
+			Token:     "tok",
+			Links:     []WorldLink{{WorldID: 3, SessionID: 9}},
+		}, filepath.Join(t.TempDir(), "config.json"))
+		if got := a.statusLine(); got != "Holding 1 world" {
+			t.Errorf("statusLine = %q, want a count when there is no name", got)
+		}
+	})
+
+	t.Run("several holds are counted", func(t *testing.T) {
+		a := newApp(Config{
+			ServerURL: "https://vault.example.test",
+			Token:     "tok",
+			Links: []WorldLink{
+				{WorldID: 1, SessionID: 1},
+				{WorldID: 2, SessionID: 2},
+				{WorldID: 3},
+			},
+		}, filepath.Join(t.TempDir(), "config.json"))
+		if got := a.statusLine(); got != "Holding 2 worlds" {
+			t.Errorf("statusLine = %q, want only the held ones counted", got)
+		}
+	})
+
+	// The one thing the player can do from this menu is quit, and during
+	// a transfer it is the one thing they must not do.
+	t.Run("a running transfer outranks everything", func(t *testing.T) {
+		a := newApp(Config{
+			ServerURL: "https://vault.example.test",
+			Token:     "tok",
+			Links:     []WorldLink{{WorldID: 3, SessionID: 9}},
+		}, filepath.Join(t.TempDir(), "config.json"))
+		a.mu.Lock()
+		a.worldSync.Busy = true
+		a.worldSync.LastError = "something older"
+		a.worldSync.Worlds = []syncWorldDTO{makeDTO(3, "Emberfall")}
+		a.mu.Unlock()
+		if got := a.statusLine(); got != "Transferring a save — don't quit yet" {
+			t.Errorf("statusLine = %q, want the transfer warning", got)
+		}
+	})
+
+	t.Run("an error points at the page rather than repeating itself", func(t *testing.T) {
+		a := newApp(Config{ServerURL: "https://vault.example.test", Token: "tok"}, filepath.Join(t.TempDir(), "config.json"))
+		a.mu.Lock()
+		a.worldSync.LastError = "service answered 502: " + strings.Repeat("blah ", 40)
+		a.mu.Unlock()
+		got := a.statusLine()
+		if got != "Sync error — open the page for details" {
+			t.Errorf("statusLine = %q", got)
+		}
+	})
+
+	t.Run("connected and idle", func(t *testing.T) {
+		a := newApp(Config{ServerURL: "https://vault.example.test", Token: "tok"}, filepath.Join(t.TempDir(), "config.json"))
+		a.mu.Lock()
+		a.worldSync.LastAction = longPath
+		a.mu.Unlock()
+		if got := a.statusLine(); got != "Connected — no worlds held" {
+			t.Errorf("statusLine = %q", got)
+		}
+	})
+
+	// A world's name comes from whoever created it, so it is the one
+	// variable-length thing here and has to be bounded.
+	t.Run("an absurd world name is cut short", func(t *testing.T) {
+		a := newApp(Config{
+			ServerURL: "https://vault.example.test",
+			Token:     "tok",
+			Links:     []WorldLink{{WorldID: 3, SessionID: 9}},
+		}, filepath.Join(t.TempDir(), "config.json"))
+		a.mu.Lock()
+		a.worldSync.Worlds = []syncWorldDTO{makeDTO(3, strings.Repeat("long ", 40))}
+		a.mu.Unlock()
+		got := a.statusLine()
+		if len([]rune(got)) > len("Holding ")+trayNameMax {
+			t.Errorf("statusLine is %d runes: %q", len([]rune(got)), got)
+		}
+		if !strings.HasSuffix(got, "…") {
+			t.Errorf("a cut name should say it was cut: %q", got)
+		}
+	})
+}
+
+func TestEllipsize(t *testing.T) {
+	if got := ellipsize("short", 32); got != "short" {
+		t.Errorf("ellipsize(short) = %q", got)
+	}
+	if got := ellipsize("exactly ten", 11); got != "exactly ten" {
+		t.Errorf("a name at the limit was cut: %q", got)
+	}
+	// Rune-aware: a name in any script must not be cut mid-character.
+	got := ellipsize("日本語のワールドの名前です", 5)
+	if r := []rune(got); len(r) != 5 || r[4] != '…' {
+		t.Errorf("ellipsize cut badly: %q (%d runes)", got, len(r))
+	}
+}
+
+// makeDTO is a world as the custody poll reports it, named.
+func makeDTO(id int64, name string) syncWorldDTO {
+	var w syncWorldDTO
+	w.World.ID = id
+	w.World.Name = name
+	return w
+}
