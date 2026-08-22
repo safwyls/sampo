@@ -87,8 +87,22 @@ Rules already in force (see the plan's "Structural rules"):
 - A game that cannot support a feature answers with a reason — a 501
   naming where the ability actually lives — rather than hiding it.
 
+**Design systems** (2026-08-22): `design-system/` holds one per sub-app,
+written as data (`<app>/system.mjs` — tokens, a token-only kit
+stylesheet, and grouped specimen cards that each name the component file
+they came from) and rendered by `design-system/build.mjs` into
+standalone preview pages committed under `<app>/previews/`. Every page
+inlines its own tokens and links to nothing, so one file renders the
+same off disk, in a Claude Design project card, and in a diff; the
+first line is the `@dsCard` marker Claude Design indexes by.
+`./scripts/checkdesign.sh` is the guard — token parity against the app's
+own `index.css`, plus a rebuild-and-diff of the committed previews.
+**reliquary is done; the other four are not** —
+`design-system/README.md` has the shape to copy.
+
 Tests: `go build ./... && go vet ./... && go test ./...`,
-`./scripts/checkbounds.sh`, and `cd web/<frontend> && npm test`
+`./scripts/checkbounds.sh`, `./scripts/checkdesign.sh`, and
+`cd web/<frontend> && npm test`
 (`web/reliquary` is one of the four; the Go build embeds every `dist/`,
 so `npm run build` in each comes first). The
 anvil module has its own suite. Save-backed palworld tests need
