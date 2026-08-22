@@ -1,0 +1,6 @@
+{
+  "projectId": "23712be5-57a2-4652-b8be-c825bd607cc7",
+  "shape": "custom",
+  "localDir": "design-system/reliquary/previews",
+  "note": "Custom hand-authored design system (design-system/reliquary/system.mjs -> build.mjs), not the storybook/package converter. See design-system/README.md."
+}
