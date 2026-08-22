@@ -34,7 +34,7 @@ func newStore(t *testing.T) *store.Store {
 func storeRunner(t *testing.T, st *store.Store) *Runner {
 	t.Helper()
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	return New(st, notify.New(st, logger), logger, t.TempDir(), agentfiles.New(t.TempDir(), logger))
+	return New(st, notify.New(st, logger, "Test"), logger, t.TempDir(), agentfiles.New(t.TempDir(), logger))
 }
 
 // addServer stores a row with a local save path, which is what makes it a

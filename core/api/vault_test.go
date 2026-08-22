@@ -41,7 +41,7 @@ func newVaultApp(t *testing.T) (*testApp, []*http.Cookie) {
 	}
 	st := store.New(sqlDB, box)
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	srv := api.New(st, []byte("test-jwt-secret-0123456789abcdef"), logger, nil, notify.New(st, logger), nil, nil, nil)
+	srv := api.New(st, []byte("test-jwt-secret-0123456789abcdef"), logger, nil, notify.New(st, logger, "Test"), nil, nil, nil)
 	srv.SaveSync = savesync.New(st, nil, logger, t.TempDir())
 	staticFS := fstest.MapFS{"index.html": &fstest.MapFile{Data: []byte("<html>vault</html>")}}
 	app := &testApp{handler: srv.VaultRoutes(staticFS), store: st, api: srv}

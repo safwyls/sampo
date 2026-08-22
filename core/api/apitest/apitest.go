@@ -89,7 +89,7 @@ func New(t *testing.T, opts Options) *App {
 	if opts.Bans != nil {
 		bans = opts.Bans(st, files, logger)
 	}
-	srv := api.New(st, []byte("test-jwt-secret-0123456789abcdef"), logger, nil, notify.New(st, logger),
+	srv := api.New(st, []byte("test-jwt-secret-0123456789abcdef"), logger, nil, notify.New(st, logger, "Test"),
 		backup.New(st, nil, logger, t.TempDir(), files), files, bans)
 	srv.Provision = opts.Provision
 	srv.DocsFS = opts.DocsFS

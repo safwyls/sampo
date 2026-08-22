@@ -129,7 +129,7 @@ func addAgentServer(t *testing.T, st *store.Store, gameURL, agentURL, container 
 func schedulerWithDocker(t *testing.T, st *store.Store, docker *dockerctl.Client) *Scheduler {
 	t.Helper()
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	return New(st, notify.New(st, logger), docker, logger, nil)
+	return New(st, notify.New(st, logger, "Test"), docker, logger, nil)
 }
 
 // The regression this guards: a provisioned server carries both an agent

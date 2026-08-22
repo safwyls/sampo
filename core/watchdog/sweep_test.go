@@ -90,7 +90,7 @@ const healthyContainer = `{"Name":"/flameagent-main","State":{"Status":"running"
 func newWatchdog(t *testing.T, st *store.Store, docker *dockerctl.Client) *Watchdog {
 	t.Helper()
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	return New(st, docker, notify.New(st, logger), logger)
+	return New(st, docker, notify.New(st, logger, "Test"), logger)
 }
 
 // addServer registers a row; over can switch off the flags the sweep gates on.

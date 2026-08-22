@@ -62,7 +62,7 @@ func newTestApp(t *testing.T) *testApp {
 	st := store.New(sqlDB, box)
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	files := agentfiles.New(t.TempDir(), logger)
-	srv := api.New(st, []byte("test-jwt-secret-0123456789abcdef"), logger, nil, notify.New(st, logger),
+	srv := api.New(st, []byte("test-jwt-secret-0123456789abcdef"), logger, nil, notify.New(st, logger, "Test"),
 		backup.New(st, nil, logger, t.TempDir(), files), files, nil)
 	srv.Provision = testProfile
 	// A console embeds its real docs; the fixture proves the endpoint
