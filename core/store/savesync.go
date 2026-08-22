@@ -267,6 +267,25 @@ func (s *Store) SetSyncWorldGameInfo(ctx context.Context, id int64, title, saveH
 	return err
 }
 
+// RenameSyncWorld changes only a world's name — the one setting a
+// player's own sync token may touch through the meta endpoint, everything
+// else there (lease, size, checkpoints, the agent link) stays an admin's
+// job through UpdateSyncWorldSettings.
+func (s *Store) RenameSyncWorld(ctx context.Context, id int64, name string) error {
+	res, err := s.db.ExecContext(ctx, `UPDATE sync_worlds SET name = ? WHERE id = ?`, name, id)
+	if err != nil {
+		if strings.Contains(err.Error(), "UNIQUE") {
+			return fmt.Errorf("a world named %q already exists", name)
+		}
+		return err
+	}
+	n, err := res.RowsAffected()
+	if err == nil && n == 0 {
+		return ErrNotFound
+	}
+	return err
+}
+
 func (s *Store) DeleteSyncWorld(ctx context.Context, id int64) error {
 	res, err := s.db.ExecContext(ctx, `DELETE FROM sync_worlds WHERE id = ?`, id)
 	if err != nil {

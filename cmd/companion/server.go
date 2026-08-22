@@ -337,7 +337,8 @@ func (a *app) handleCreateWorld(w http.ResponseWriter, r *http.Request) {
 // outcome the page has to be able to explain.
 func (a *app) handleCheckout(w http.ResponseWriter, r *http.Request) {
 	var in struct {
-		Takeover bool `json:"takeover"`
+		Takeover bool  `json:"takeover"`
+		Play     *bool `json:"play"`
 	}
 	json.NewDecoder(r.Body).Decode(&in) // an empty body is a plain checkout
 	id, err := strconv.ParseInt(r.PathValue("worldID"), 10, 64)
@@ -347,6 +348,18 @@ func (a *app) handleCheckout(w http.ResponseWriter, r *http.Request) {
 	}
 	if !a.syncConfigured() {
 		writeJSON(w, map[string]any{"ok": false, "error": "set the server URL and token first"})
+		return
+	}
+	// Play defaults to true — "check out & play" is the existing one-button
+	// flow. An explicit false is the new plain-checkout button: the save
+	// lands on this machine and nothing is launched, no matter what the
+	// launch-on-checkout setting says.
+	if in.Play != nil && !*in.Play {
+		if err := a.syncCheckout(id, in.Takeover); err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": err.Error()})
+			return
+		}
+		writeJSON(w, map[string]any{"ok": true, "launched": false})
 		return
 	}
 	launched, launchErr, err := a.checkoutAndPlay(id, in.Takeover)
@@ -398,9 +411,9 @@ func (a *app) handleApplyUpdate(w http.ResponseWriter, r *http.Request) {
 	}()
 }
 
-// handleUpdateLink edits the parts of a link the player owns. Only the
-// launch target so far — the folder and the world it points at are
-// settled by linking, and changing either is an unlink and a relink.
+// handleUpdateLink edits the parts of a link the player owns: the launch
+// target, the local folder it points at, and — since that lives on the
+// service, not here — the world's name.
 func (a *app) handleUpdateLink(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.ParseInt(r.PathValue("worldID"), 10, 64)
 	if err != nil {
@@ -409,6 +422,8 @@ func (a *app) handleUpdateLink(w http.ResponseWriter, r *http.Request) {
 	}
 	var in struct {
 		LaunchTarget *string `json:"launchTarget"`
+		Dir          *string `json:"dir"`
+		WorldName    *string `json:"worldName"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "invalid body"})
@@ -424,10 +439,37 @@ func (a *app) handleUpdateLink(w http.ResponseWriter, r *http.Request) {
 	if in.LaunchTarget != nil {
 		l.LaunchTarget = strings.TrimSpace(*in.LaunchTarget)
 	}
+	held := l.SessionID != 0
 	a.mu.Unlock()
+	if in.Dir != nil {
+		dir := strings.TrimSpace(*in.Dir)
+		if held {
+			writeJSON(w, map[string]any{"ok": false, "error": "check the world in before changing its folder"})
+			return
+		}
+		if err := checkSaveDir(dir); err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": err.Error()})
+			return
+		}
+		a.mu.Lock()
+		if l := a.cfg.link(id); l != nil {
+			l.Dir = dir
+		}
+		a.mu.Unlock()
+	}
 	if err := a.saveCfg(); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": "saving config: " + err.Error()})
 		return
+	}
+	if in.WorldName != nil {
+		if !a.syncConfigured() {
+			writeJSON(w, map[string]any{"ok": false, "error": "set the server URL and token first"})
+			return
+		}
+		if err := a.renameWorld(id, strings.TrimSpace(*in.WorldName)); err != nil {
+			writeJSON(w, map[string]any{"ok": false, "error": err.Error()})
+			return
+		}
 	}
 	writeJSON(w, map[string]any{"ok": true})
 }

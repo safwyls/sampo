@@ -289,6 +289,11 @@ func (s *Server) handleSyncWorldMeta(w http.ResponseWriter, r *http.Request) {
 		SaveHint  string `json:"saveHint"`
 		GameMeta  string `json:"gameMeta"`
 		SavePath  string `json:"savePath"`
+		// Name is the one setting beyond game metadata a player's own
+		// sync token may touch here — everything else (lease, size,
+		// checkpoints, the agent link) stays an admin's job through the
+		// settings form. Absent or blank leaves the name untouched.
+		Name string `json:"name,omitempty"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body")
@@ -298,17 +303,29 @@ func (s *Server) handleSyncWorldMeta(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	// The save path is the world's own, not the reporter's: the first
-	// companion to record it settles where the world lives for everyone,
-	// and a later joiner reporting its own metadata must not overwrite
-	// it. Clearing it is an admin's job, through the settings form.
-	savePath := world.SavePath
-	if savePath == "" {
-		savePath = in.SavePath
+	if in.Name != "" {
+		if err := s.store.RenameSyncWorld(r.Context(), world.ID, in.Name); err != nil {
+			writeSyncError(w, err)
+			return
+		}
 	}
-	if err := s.store.SetSyncWorldGameInfo(r.Context(), world.ID, in.GameTitle, in.SaveHint, in.GameMeta, savePath); err != nil {
-		writeSyncError(w, err)
-		return
+	// A pure rename carries none of the game-info fields — skip the game
+	// info write entirely rather than blanking gameTitle/saveHint/gameMeta
+	// with empties the request never meant to set.
+	if in.GameTitle != "" || in.SaveHint != "" || in.GameMeta != "" || in.SavePath != "" {
+		// The save path is the world's own, not the reporter's: the first
+		// companion to record it settles where the world lives for
+		// everyone, and a later joiner reporting its own metadata must
+		// not overwrite it. Clearing it is an admin's job, through the
+		// settings form.
+		savePath := world.SavePath
+		if savePath == "" {
+			savePath = in.SavePath
+		}
+		if err := s.store.SetSyncWorldGameInfo(r.Context(), world.ID, in.GameTitle, in.SaveHint, in.GameMeta, savePath); err != nil {
+			writeSyncError(w, err)
+			return
+		}
 	}
 	s.syncAudit(r, world, "sync-world-meta", in.GameTitle)
 	writeJSON(w, http.StatusOK, map[string]any{"accepted": true})
