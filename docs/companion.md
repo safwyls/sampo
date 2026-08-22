@@ -182,6 +182,49 @@ split rule is where that knowledge would live.
    anything; the setting defaults on, and a config written before it
    existed gets that default.
 
+## Keeping itself current
+
+The companion is one exe a player downloaded once and will never think
+about again, which is exactly the shape that ends up months behind the
+service it talks to. So it asks GitHub what the current build is
+(`update.go`), says so on its page, and can replace itself with one
+click.
+
+**Identity, not ordering.** Every release stamps `main.version` with a
+12-character commit SHA — tagged releases too — and SHAs cannot be
+compared for "newer". So the question asked is not *is theirs greater
+than mine* but *is theirs the one I am running*: the release publishes
+`companion-version.txt` naming its build, and a companion whose own
+stamp differs is not running it. Weaker than semver in one way (it
+cannot tell forward from backward, so a rollback reads as an update) and
+stronger in another (it cannot be fooled by a version string that lies
+about what was built). The page says "a different build", not "a newer
+version", because that is what is actually known.
+
+**The swap.** A running executable cannot be overwritten on Windows, but
+it *can* be renamed. The download is staged in the install directory —
+same volume, so the renames cannot half-happen — verified against the
+release's `companion-sha256.txt` and checked for its platform's
+executable magic, then the running binary moves aside to `.old`, the
+download takes its place, and the process restarts into it. If the
+second rename fails the first is undone, so a failed update leaves the
+working companion exactly where it was. The `.old` is cleared at the
+next start, the first moment it is no longer running.
+
+**What it will not do.** It will not apply an update while a save
+transfer is running — replacing the binary mid-transfer would kill the
+save in flight. It will not offer one to a `dev` build. It will not
+offer a button to an install that cannot write to its own directory
+(Program Files without elevation); it says so instead. And it never
+applies anything on its own: checking is automatic, replacing is a
+click, because a binary that silently replaces itself is a thing to be
+wary of even when you wrote it.
+
+The checksum is not provenance — the exe is unsigned — but it catches a
+truncated or corrupted download, which is the failure that would
+otherwise leave someone with an unrunnable companion and no obvious way
+back. `COMPANION_UPDATE_REPO` points the check at a fork.
+
 The credential is the player's personal sync token from the service's
 page. Nothing leaves the machine until a service URL and token are set.
 It never reaches the screen either: transport errors quote the URL they

@@ -45,6 +45,24 @@ jobs:
             go build -ldflags="-H windowsgui -X main.version=${GITHUB_SHA::12}" -o artificer-companion.exe ./cmd/companion
           GOOS=linux GOARCH=amd64 CGO_ENABLED=0 \
             go build -ldflags="-X main.version=${GITHUB_SHA::12}" -o artificer-companion-linux ./cmd/companion
+      # What the installed companion compares itself against. Every build
+      # here stamps main.version with a commit SHA — including tagged
+      # ones — and SHAs have no order, so "is there something newer" can
+      # only be answered by identity: this release says which build it
+      # is, and a companion whose own stamp differs is not running it.
+      # A file rather than a line in the release notes, because the
+      # updater should read a fact, not parse prose.
+      #
+      # The checksums are what the updater verifies a download against
+      # before it replaces a running binary. The exe is unsigned, so this
+      # is not provenance — it catches a truncated or corrupted download,
+      # which is the failure that would otherwise leave someone with an
+      # unrunnable companion and no way back.
+      - name: Version and checksum manifests
+        run: |
+          printf '%s' "${GITHUB_SHA::12}" > companion-version.txt
+          sha256sum artificer-companion.exe artificer-companion-linux > companion-sha256.txt
+          cat companion-version.txt companion-sha256.txt
       - name: Rolling companion-latest release (main)
         if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
@@ -59,6 +77,8 @@ jobs:
           files: |
             artificer-companion.exe
             artificer-companion-linux
+            companion-version.txt
+            companion-sha256.txt
       - name: Tagged release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
@@ -66,3 +86,5 @@ jobs:
           files: |
             artificer-companion.exe
             artificer-companion-linux
+            companion-version.txt
+            companion-sha256.txt

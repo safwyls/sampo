@@ -2,13 +2,18 @@ package main
 
 import (
 	"bytes"
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -1259,3 +1264,236 @@ func makeDTO(id int64, name string) syncWorldDTO {
 	w.World.Name = name
 	return w
 }
+
+// --- in-place updates (update.go) ---
+
+func TestChecksumFor(t *testing.T) {
+	manifest := "d1e8a70b5ccab1dc2f56bbf7e99f064a660c08e361a35751b9c483c88943d082  artificer-companion.exe\n" +
+		"9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08 *artificer-companion-linux\n"
+	if got := checksumFor(manifest, "artificer-companion.exe"); got != "d1e8a70b5ccab1dc2f56bbf7e99f064a660c08e361a35751b9c483c88943d082" {
+		t.Errorf("windows sum = %q", got)
+	}
+	// sha256sum writes "*name" in binary mode; both spellings are the
+	// same entry.
+	if got := checksumFor(manifest, "artificer-companion-linux"); got == "" {
+		t.Error("binary-mode entry was not matched")
+	}
+	if got := checksumFor(manifest, "something-else"); got != "" {
+		t.Errorf("matched an asset that is not in the manifest: %q", got)
+	}
+	// A truncated or malformed manifest must not yield a short "hash"
+	// that something later compares against.
+	if got := checksumFor("abc  artificer-companion.exe", "artificer-companion.exe"); got != "" {
+		t.Errorf("accepted a %d-character hash", len(got))
+	}
+}
+
+// The whole update flow against a stand-in GitHub: the release names a
+// build, the companion notices it is not that build, downloads it,
+// verifies it, and swaps itself out.
+func TestUpdateCheckAndApply(t *testing.T) {
+	payload := fakeBinary("this is the new companion, honest")
+	sum := sha256.Sum256(payload)
+	remoteVersion := "abcdef123456"
+
+	var served []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		served = append(served, r.URL.Path)
+		switch {
+		case strings.HasSuffix(r.URL.Path, "/companion-version.txt"):
+			w.Write([]byte(remoteVersion + "\n"))
+		case strings.HasSuffix(r.URL.Path, "/companion-sha256.txt"):
+			fmt.Fprintf(w, "%s  %s\n", hex.EncodeToString(sum[:]), updateAssetName())
+		case strings.HasSuffix(r.URL.Path, updateAssetName()):
+			w.Write(payload)
+		default:
+			json.NewEncoder(w).Encode(map[string]any{
+				"tag_name": "companion-latest",
+				"assets": []map[string]any{
+					{"name": "companion-version.txt", "browser_download_url": srvURL(r) + "/companion-version.txt"},
+					{"name": "companion-sha256.txt", "browser_download_url": srvURL(r) + "/companion-sha256.txt"},
+					{"name": updateAssetName(), "browser_download_url": srvURL(r) + "/" + updateAssetName(), "size": len(payload)},
+				},
+			})
+		}
+	}))
+	defer srv.Close()
+
+	a := newApp(Config{}, filepath.Join(t.TempDir(), "config.json"))
+
+	t.Run("a matching build is not an update", func(t *testing.T) {
+		restore := stubVersion(remoteVersion)
+		defer restore()
+		st, err := a.fetchUpdateStateFrom(context.Background(), srv.URL)
+		if err != nil {
+			t.Fatalf("fetch: %v", err)
+		}
+		if st.Available {
+			t.Error("offered an update to the build already running")
+		}
+		if st.Version != remoteVersion {
+			t.Errorf("version = %q", st.Version)
+		}
+	})
+
+	t.Run("a different build is an update", func(t *testing.T) {
+		restore := stubVersion("000000000000")
+		defer restore()
+		st, err := a.fetchUpdateStateFrom(context.Background(), srv.URL)
+		if err != nil {
+			t.Fatalf("fetch: %v", err)
+		}
+		if !st.Available {
+			t.Error("did not notice a different build")
+		}
+	})
+
+	// Nobody wants their working tree replaced by a release.
+	t.Run("a dev build is never offered an update", func(t *testing.T) {
+		restore := stubVersion("dev")
+		defer restore()
+		st, err := a.fetchUpdateStateFrom(context.Background(), srv.URL)
+		if err != nil {
+			t.Fatalf("fetch: %v", err)
+		}
+		if st.Available {
+			t.Error("offered to replace a dev build")
+		}
+	})
+
+	t.Run("the binary is swapped and the old one kept aside", func(t *testing.T) {
+		dir := t.TempDir()
+		exe := filepath.Join(dir, "companion-under-test")
+		if err := os.WriteFile(exe, []byte("the build that is running"), 0o755); err != nil {
+			t.Fatalf("seed exe: %v", err)
+		}
+		if err := a.swapInUpdateFrom(context.Background(), srv.URL, exe); err != nil {
+			t.Fatalf("apply: %v", err)
+		}
+		got, _ := os.ReadFile(exe)
+		if string(got) != string(payload) {
+			t.Errorf("the binary was not replaced: %q", got)
+		}
+		// The previous build survives beside it until the next start,
+		// because a running binary cannot delete itself.
+		if old, err := os.ReadFile(exe + ".old"); err != nil || string(old) != "the build that is running" {
+			t.Errorf(".old = %q / %v", old, err)
+		}
+		// And nothing else is left lying around.
+		entries, _ := os.ReadDir(dir)
+		if len(entries) != 2 {
+			names := []string{}
+			for _, e := range entries {
+				names = append(names, e.Name())
+			}
+			t.Errorf("leftovers in the install directory: %v", names)
+		}
+	})
+}
+
+// A download that does not match the release's checksum must never
+// reach the running binary — that is the difference between a failed
+// update and an unrunnable companion.
+func TestUpdateRefusesAMismatchedDownload(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.HasSuffix(r.URL.Path, "/companion-sha256.txt"):
+			fmt.Fprintf(w, "%s  %s\n", strings.Repeat("0", 64), updateAssetName())
+		case strings.HasSuffix(r.URL.Path, updateAssetName()):
+			w.Write(fakeBinary("a corrupted or substituted download"))
+		default:
+			json.NewEncoder(w).Encode(map[string]any{
+				"assets": []map[string]any{
+					{"name": "companion-sha256.txt", "browser_download_url": srvURL(r) + "/companion-sha256.txt"},
+					{"name": updateAssetName(), "browser_download_url": srvURL(r) + "/" + updateAssetName()},
+				},
+			})
+		}
+	}))
+	defer srv.Close()
+
+	dir := t.TempDir()
+	exe := filepath.Join(dir, "companion-under-test")
+	os.WriteFile(exe, []byte("the build that is running"), 0o755)
+	a := newApp(Config{}, filepath.Join(t.TempDir(), "config.json"))
+
+	err := a.swapInUpdateFrom(context.Background(), srv.URL, exe)
+	if err == nil || !strings.Contains(err.Error(), "checksum") {
+		t.Fatalf("error = %v, want a checksum refusal", err)
+	}
+	if got, _ := os.ReadFile(exe); string(got) != "the build that is running" {
+		t.Errorf("the running binary was touched: %q", got)
+	}
+	if _, err := os.Stat(exe + ".old"); err == nil {
+		t.Error("a refused update still moved the binary aside")
+	}
+	// The staged download is cleaned up rather than left in the folder.
+	entries, _ := os.ReadDir(dir)
+	if len(entries) != 1 {
+		t.Errorf("%d files left in the install directory", len(entries))
+	}
+}
+
+func TestUpdateRefusesNonExecutablePayloads(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "download")
+	os.WriteFile(path, []byte("<html>an auth portal, not a companion</html>"), 0o600)
+	if err := verifyExecutable(path); err == nil {
+		t.Error("accepted an HTML page as an executable")
+	}
+	os.WriteFile(path, []byte("x"), 0o600)
+	if err := verifyExecutable(path); err == nil {
+		t.Error("accepted a file too small to be anything")
+	}
+}
+
+// Replacing the binary underneath a save transfer would kill the save
+// in flight.
+func TestUpdateWaitsForATransfer(t *testing.T) {
+	a := newApp(Config{}, filepath.Join(t.TempDir(), "config.json"))
+	a.mu.Lock()
+	a.worldSync.Busy = true
+	a.mu.Unlock()
+	err := a.applyUpdate(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "transfer is running") {
+		t.Errorf("error = %v, want it to wait for the transfer", err)
+	}
+}
+
+// A release published before this feature existed does not say which
+// build it is. Saying nothing beats guessing.
+func TestUpdateIsQuietAboutReleasesThatPredateIt(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		json.NewEncoder(w).Encode(map[string]any{
+			"assets": []map[string]any{{"name": updateAssetName(), "browser_download_url": "x"}},
+		})
+	}))
+	defer srv.Close()
+	a := newApp(Config{}, filepath.Join(t.TempDir(), "config.json"))
+	st, err := a.fetchUpdateStateFrom(context.Background(), srv.URL)
+	if err == nil || !strings.Contains(err.Error(), "predates") {
+		t.Errorf("error = %v, want it to explain the release is too old", err)
+	}
+	if st.Available {
+		t.Error("offered an update it could not identify")
+	}
+}
+
+// fakeBinary is a payload that passes this platform's shape check, so a
+// test exercises the swap rather than the guard against downloading an
+// error page.
+func fakeBinary(body string) []byte {
+	magic := "MZ"
+	if runtime.GOOS != "windows" {
+		magic = "\x7fELF"
+	}
+	return []byte(magic + body)
+}
+
+func stubVersion(v string) func() {
+	prev := version
+	version = v
+	return func() { version = prev }
+}
+
+func srvURL(r *http.Request) string { return "http://" + r.Host }

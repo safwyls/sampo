@@ -100,6 +100,23 @@ export interface SyncState {
   serverVersion?: string;
 }
 
+/** What GitHub last said about the current release (cmd/companion:
+ * update.go). Convenience, never custody. */
+export interface UpdateState {
+  /** The release names a build that is not this one. Deliberately not
+   * "newer": every build is stamped with a commit SHA, and SHAs have no
+   * order, so identity is the only honest question. */
+  available: boolean;
+  version?: string;
+  checkedAt?: string;
+  error?: string;
+  applying?: boolean;
+  /** False when this install cannot replace itself — no writable
+   * directory, or a platform with no published release. */
+  supported: boolean;
+  why?: string;
+}
+
 export interface CompanionState {
   config: {
     serverUrl: string;
@@ -112,6 +129,7 @@ export interface CompanionState {
   discovered: Discovery;
   sync: SyncState;
   version: string;
+  update?: UpdateState;
 }
 
 export interface Artwork {
